@@ -3,7 +3,7 @@ import threading
 import os
 import db
 from tun import create_tun
-from crypto import xor
+from crypto import encrypt, decrypt
 
 db.init_db()
 
@@ -36,12 +36,12 @@ if success:
     def tun_to_udp():
         while True:
             packet = os.read(tun, 2048)
-            sock.sendto(xor(packet), client_addr)
+            sock.sendto(encrypt(packet), client_addr)
 
     def udp_to_tun():
         while True:
-            data, addr = sock.recvfrom(2048)
-            os.write(tun, xor(data))
+            data, addr = sock.recvfrom(4096)
+            os.write(tun, decrypt(data))
 
     t1 = threading.Thread(target=tun_to_udp)
     t2 = threading.Thread(target=udp_to_tun)
