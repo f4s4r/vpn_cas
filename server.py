@@ -27,7 +27,9 @@ if action == "LOGIN":
     success = db.login(username, password)
     print("login attempt", username, success)
 
-if success:
+allowed = success and db.has_permission(username, "connect")
+
+if allowed:
     sock.sendto(b"OK", client_addr)
 
     tun = create_tun("tun0", "10.0.0.1")
@@ -51,4 +53,4 @@ if success:
     t2.join()
 else:
     sock.sendto(b"FAIL", client_addr)
-    print("auth failed")
+    print("auth failed or no permission")
