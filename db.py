@@ -1,14 +1,19 @@
 import sqlite3
+import hashlib
+import os
 
 def connect():
     return sqlite3.connect("users.sqlite")
+
+def make_hash(salt, password):
+    return hashlib.sha256((salt + password).encode()).hexdigest()
 
 def init_db():
     db = connect()
     db.execute("CREATE TABLE IF NOT EXISTS roles (id INTEGER PRIMARY KEY, name TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS permissions (id INTEGER PRIMARY KEY, name TEXT)")
     db.execute("CREATE TABLE IF NOT EXISTS role_permissions (role_id INTEGER, permission_id INTEGER)")
-    db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT, role_id INTEGER)")
+    db.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT, salt TEXT, role_id INTEGER)")
     db.commit()
 
     count = db.execute("SELECT COUNT(*) FROM roles").fetchone()[0]
@@ -22,17 +27,23 @@ def init_db():
     db.close()
 
 def register(username, password):
+    salt = os.urandom(16).hex()
+    stored = make_hash(salt, password)
     db = connect()
-    db.execute("INSERT INTO users (username, password, role_id) VALUES (?, ?, 2)", (username, password))
+    db.execute("INSERT INTO users (username, password, salt, role_id) VALUES (?, ?, ?, 2)", (username, stored, salt))
     db.commit()
     db.close()
 
 def login(username, password):
     db = connect()
-    cur = db.execute("SELECT * FROM users WHERE username = ? AND password = ?", (username, password))
+    cur = db.execute("SELECT password, salt FROM users WHERE username = ?", (username,))
     row = cur.fetchone()
     db.close()
-    return row is not None
+    if row is None:
+        return False
+    stored = row[0]
+    salt = row[1]
+    return make_hash(salt, password) == stored
 
 def has_permission(username, permission_name):
     db = connect()
